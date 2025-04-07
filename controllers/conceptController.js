@@ -1,18 +1,18 @@
 const router = require("express").Router()
+const verifyToken = require("../middleware/verify-token")
+
 
 
 const Concept = require("../models/Concept");
 const User = require("../models/User");
 
-const verifyToken = require("../middleware/verify-token")
 
-router.get("/",verifyToken,async(req,res)=>{
+router.get("/mangagers",verifyToken,async(req,res)=>{
     try{
-        const allManagers = await User.find({ role: "manager" }).select("_id username").populate([
-            "username",
-            "comments.author"
+        const allManagers = await User.find({ role: "manager" }).populate([
+            "projects",
         ])
-        res.json(allHoots)    
+        res.json(allManagers)    
     }
     catch(err){
         res.status(500).json({err:err.message})
@@ -21,8 +21,7 @@ router.get("/",verifyToken,async(req,res)=>{
 
 
 
-router.get("/")
-async function createConcept(req, res) {
+router.post("/" , verifyToken, async (req, res)=> {
     const { title, selectedManagers } = req.body;
 
     // Check that selectedManagers are actual managers
@@ -37,4 +36,7 @@ async function createConcept(req, res) {
     await concept.save();
 
     res.status(201).json(concept);
-}
+})
+
+
+module.exports = router

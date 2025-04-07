@@ -15,8 +15,19 @@ const userSchema = new Schema({
     role: {
         type: String,
         enum: ["admin", "manager", "employee"],
-        required: true
-    }
+        // required: true
+    },
+
+
+    projects: [{
+        type: [Schema.Types.ObjectId],
+        ref: "Concept", 
+        status: {
+            type: String,
+            enum: ["not started", "in progress", "done"],
+        }
+    }]
+
 })
 
 const User = model("User",userSchema)

@@ -7,9 +7,18 @@ const conceptSchema = new Schema({
         unique: true,
     },
     selectedManagers: {
-        type: Schema.Types.ObjectId,
+        type: [Schema.Types.ObjectId],
         ref: "User",
         required: true,
+    },
+    selectedOperatoin: {
+        type: [Schema.Types.ObjectId],
+        ref: "User",
+    },
+
+    description: {
+        type: String,
+
     },
     status: {
         type: String,
