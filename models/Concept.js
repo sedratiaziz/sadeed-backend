@@ -1,6 +1,12 @@
 const {Schema, model} = require("mongoose")
 
 const conceptSchema = new Schema({
+    owner: {
+        type: Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+
+    },
     title: {
         type: String,
         required: true,
@@ -11,7 +17,7 @@ const conceptSchema = new Schema({
         ref: "User",
         required: true,
     },
-    selectedOperatoin: {
+    selectedOperatoinl: {
         type: [Schema.Types.ObjectId],
         ref: "User",
     },
@@ -19,6 +25,14 @@ const conceptSchema = new Schema({
     description: {
         type: String,
 
+    },
+    aprovalCount: {
+        type: [Boolean]
+
+    },
+    isAproved: {
+        type: Boolean,
+        default: false,
     },
     status: {
         type: String,

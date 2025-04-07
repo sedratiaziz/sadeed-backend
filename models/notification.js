@@ -15,7 +15,7 @@ const notificationSchema = new Schema({
         enum: ["task assigned", "comment added", "project completed"],
         required: true,
     },
-    read: {
+    isRead: {
         type: Boolean,
         default: false,
     },

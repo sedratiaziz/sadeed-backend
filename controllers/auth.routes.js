@@ -14,7 +14,8 @@ router.post("/sign-up",async(req,res)=>{
         }
         const createdUser = await User.create({
             username:req.body.username,
-            hashedPassword: bcrypt.hashSync(req.body.password,12)
+            hashedPassword: bcrypt.hashSync(req.body.password,12),
+            // role: req.body.role,
         })
         console.log(createdUser)
 
@@ -53,6 +54,8 @@ router.post("/login",async(req,res)=>{
 
         // sign(payload, secret password, expirastion time)
         const token = jwt.sign({payload},process.env.JWT_SECRET,{expiresIn:"30m"})
+        console.log("test2: ", payload)
+
 
         res.status(200).json({token})
 
