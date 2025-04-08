@@ -8,12 +8,19 @@ const User = require("../models/User");
 
 
 //get all manager
-router.get("/mangagers", verifyToken, async (req, res) => {
+router.get("/managers", verifyToken, async (req, res) => {
     try {
         const allManagers = await User.find({ role: "manager" }).populate([
             "projects",
         ])
-        res.json(allManagers)
+
+        allManagersToSend = allManagers.map((e) => {
+            const managerAsObj = e.toObject()
+            delete managerAsObj.hashedPassword
+            return managerAsObj
+        })
+
+        res.json(allManagersToSend)
     }
     catch (err) {
         res.status(500).json({ err: err.message })
@@ -32,77 +39,64 @@ router.get("/", verifyToken, async (req, res) => {
     catch (err) {
         res.status(500).json({ err: err.message })
     }
+})
 
-    //create a concept
-    router.post("/", verifyToken, async (req, res) => {
-        try {
-            const user = req.user
+//create a concept
+router.post("/", verifyToken, async (req, res) => {
+    try {
+        const user = req.user
+        const { selectedManagers=[] , selectedOperational=[] , title, description } = req.body;
+        console.log(selectedManagers)
 
+        const selectedManagersFullObj = await Promise.all( selectedManagers.map(async (e)=>{
+            const obj = await User.findOne({_id: e})
+            console.log(obj)
+            return obj
+        }))
+        
+        const selectedOperationalFullObj = await Promise.all( selectedOperational.map(async (e)=>{
+            const obj = await User.findOne({_id: e})
+            console.log(obj)
+            return obj
+        }))
 
-           
         if (user.role !== "admin") {
             return res.status(400).json({ err: "You are not an admin, you cannot create a concept!" })
         }
 
-        const { selectedManagers = [], selectedOperational = [], title, description } = req.body;
-
-        for (const manager of selectedManagers) {
+        for (const manager of selectedManagersFullObj) {
             if (manager.role !== "manager") {
+                console.log(typeof(manager))
+                console.log(manager.role)
                 return res.status(400).json({ err: "One or more of the managers do not have the role 'manager'!" })
             }
         }
 
-        for (const employee of selectedOperational) {
+
+        for (const employee of selectedOperationalFullObj) {
             if (employee.role !== "employee") {
                 return res.status(400).json({ err: "One or more of the operational staff do not have the role 'employee'!" })
             }
         }
 
         const createdConcept = await Concept.create({
-            owner: user.username,
+            owner: user._id,
             title,
             selectedManagers,
             selectedOperational,
             description
-        });
+        })
 
-            console.log(createdConcept)
-
-
-            res.json(createdConcept)
-
-
-
-
-
-        }
-        catch (err) {
-            res.status(500).json({ err: err.message })
-        }
-    })
-
-
+        res.json(createdConcept)
+    }
+    catch (err) {
+        res.status(500).json({ err: err.message })
+    }
 })
 
 
 
-router.post("/", verifyToken, async (req, res) => {
-    const { title, selectedManagers } = req.body;
 
-    // Check that selectedManagers are actual managers
-    // const users = await User.find({ _id: { $in: selectedManagers }, role: "manager" });
-
-    // if (users.length !== selectedManagers.length) {
-    //     return res.status(400).json({ error: "One or more selected users are not managers." });
-    // }
-
-    // Create Concept
-    const concept = await Concept.create({ title, selectedManagers })
-    // new Concept({ title, selectedManagers });
-    // await concept.save();
-
-    res.status(201).json(concept);
-})
 
 
 module.exports = router
