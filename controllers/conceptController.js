@@ -5,6 +5,7 @@ const verifyToken = require("../middleware/verify-token")
 
 const Concept = require("../models/Concept");
 const User = require("../models/User");
+const Notification = require("../models/Notification");
 
 
 //get all manager
@@ -45,17 +46,17 @@ router.get("/", verifyToken, async (req, res) => {
 router.post("/", verifyToken, async (req, res) => {
     try {
         const user = req.user
-        const { selectedManagers=[] , selectedOperational=[] , title, description } = req.body;
+        const { selectedManagers = [], selectedOperational = [], title, description } = req.body;
         console.log(selectedManagers)
 
-        const selectedManagersFullObj = await Promise.all( selectedManagers.map(async (e)=>{
-            const obj = await User.findOne({_id: e})
+        const selectedManagersFullObj = await Promise.all(selectedManagers.map(async (e) => {
+            const obj = await User.findOne({ _id: e })
             console.log(obj)
             return obj
         }))
-        
-        const selectedOperationalFullObj = await Promise.all( selectedOperational.map(async (e)=>{
-            const obj = await User.findOne({_id: e})
+
+        const selectedOperationalFullObj = await Promise.all(selectedOperational.map(async (e) => {
+            const obj = await User.findOne({ _id: e })
             console.log(obj)
             return obj
         }))
@@ -66,7 +67,7 @@ router.post("/", verifyToken, async (req, res) => {
 
         for (const manager of selectedManagersFullObj) {
             if (manager.role !== "manager") {
-                console.log(typeof(manager))
+                console.log(typeof (manager))
                 console.log(manager.role)
                 return res.status(400).json({ err: "One or more of the managers do not have the role 'manager'!" })
             }
@@ -87,12 +88,73 @@ router.post("/", verifyToken, async (req, res) => {
             description
         })
 
+        await createdConcept.populate([
+            { path: "owner", select: "username role" },
+            { path: "selectedManagers", select: "username role" },
+            { path: "selectedOperational", select: "username role" }
+
+        ])
+
+        // Trigger notifications to selected managers
+        for (let managerId of selectedManagers) {
+            console.log(managerId)
+            const manager = await User.findById(managerId);
+            await Notification.create({
+                user: manager._id,
+                message: `You have been assigned to a new concept titled "${title}".`,
+            }).then(notification => {
+                console.log("Notification created:", notification);
+            }).catch(err => {
+                console.error("Error creating notification:", err);
+            });
+        }
+
+        // Trigger notifications to selected employee
+        for (let operationalId of selectedOperational) {
+            const operational = await User.findById(operationalId);
+            await Notification.create({
+                user: manager._id,
+                message: `You have been assigned to a new concept titled "${title}".`,
+            });
+        }
+
         res.json(createdConcept)
     }
     catch (err) {
         res.status(500).json({ err: err.message })
     }
 })
+
+
+//retrive unread notification
+router.get("/:userId/notifications/:id", verifyToken, async (req, res) => {
+    try {
+        const user = req.user
+        // Get unread notifications for the logged-in user
+        const notifications = await Notification.find({ user: user._id, isReadead: false })
+                                                .sort({ created_at: -1 })
+
+        res.status(200).json(notifications);
+    } catch (err) {
+        res.status(500).json({ err: err.message })
+    }
+})
+
+//mark notification as read
+router.put("/:userId/notifications/:id", verifyToken, async (req, res) => {
+    try {
+        const user = req.user
+        const notification = await Notification.findByIdAndUpdate(
+            req.params.id,
+            { isReadead: true },
+            { new: true }
+        );
+        res.status(200).json(notification);
+    } catch (err) {
+        res.status(500).json({ err: err.message });
+    }
+});
+
 
 
 
