@@ -25,7 +25,7 @@ const taskSchema = new Schema({
     },
     project: {
         type: Schema.Types.ObjectId,
-        ref: "Project",
+        ref: "concept",
         required: true,
     },
 }, { timestamps: true });
