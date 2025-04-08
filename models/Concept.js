@@ -17,7 +17,7 @@ const conceptSchema = new Schema({
         ref: "User",
         required: true,
     },
-    selectedOperatoinl: {
+    selectedOperational: {
         type: [Schema.Types.ObjectId],
         ref: "User",
     },
