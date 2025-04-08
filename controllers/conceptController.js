@@ -38,18 +38,33 @@ router.get("/", verifyToken, async (req, res) => {
         try {
             const user = req.user
 
+            const selectedManagers = req.body.selectedManagers
+            const selectedOperational= req.body.selectedOperational
+
             if (user.role != "admin")
-                res.status(400).json({ err: "you are not an admin, you cannot create a concept!" })
+                return res.status(400).json({ err: "you are not an admin, you cannot create a concept!" })
 
-            const createdUser = await Concept.create({
-                owner: req.body.username,
+            selectedManagers.forEach((e)=>{
+                if(e.role != "manager")
+                    return res.status(400).json({ err: "One or more of the managers doesnot match!" })
+            });
+
+            selectedOperational.forEach((e)=>{
+                if(e.role != "manager")
+                    return res.status(400).json({ err: "One or more of the employee doesnot match!" })
+            });
+
+            const createdConcept = await Concept.create({
+                owner: user.username,
+                title: req.body.title,
+                selectedManagers: req.body.selectedManagers,
+                selectedOperatoinl: req.body.selectedOperatoinl,
+                description: req.body.description
             })
-            console.log(createdUser)
+            console.log(createdConcept)
 
 
-            const convertedObject = createdUser.toObject()
-            delete convertedObject.hashedPassword
-            res.json(convertedObject)
+            res.json(createdConcept)
 
 
 
