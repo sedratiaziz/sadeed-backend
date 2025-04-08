@@ -38,29 +38,34 @@ router.get("/", verifyToken, async (req, res) => {
         try {
             const user = req.user
 
-            const selectedManagers = req.body.selectedManagers
-            const selectedOperational= req.body.selectedOperational
 
-            if (user.role != "admin")
-                return res.status(400).json({ err: "you are not an admin, you cannot create a concept!" })
+           
+        if (user.role !== "admin") {
+            return res.status(400).json({ err: "You are not an admin, you cannot create a concept!" })
+        }
 
-            selectedManagers.forEach((e)=>{
-                if(e.role != "manager")
-                    return res.status(400).json({ err: "One or more of the managers doesnot match!" })
-            });
+        const { selectedManagers = [], selectedOperational = [], title, description } = req.body;
 
-            selectedOperational.forEach((e)=>{
-                if(e.role != "manager")
-                    return res.status(400).json({ err: "One or more of the employee doesnot match!" })
-            });
+        for (const manager of selectedManagers) {
+            if (manager.role !== "manager") {
+                return res.status(400).json({ err: "One or more of the managers do not have the role 'manager'!" })
+            }
+        }
 
-            const createdConcept = await Concept.create({
-                owner: user.username,
-                title: req.body.title,
-                selectedManagers: req.body.selectedManagers,
-                selectedOperatoinl: req.body.selectedOperatoinl,
-                description: req.body.description
-            })
+        for (const employee of selectedOperational) {
+            if (employee.role !== "employee") {
+                return res.status(400).json({ err: "One or more of the operational staff do not have the role 'employee'!" })
+            }
+        }
+
+        const createdConcept = await Concept.create({
+            owner: user.username,
+            title,
+            selectedManagers,
+            selectedOperational,
+            description
+        });
+
             console.log(createdConcept)
 
 
