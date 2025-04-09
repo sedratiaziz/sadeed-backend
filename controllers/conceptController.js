@@ -149,7 +149,29 @@ router.post("/", verifyToken, async (req, res) => {
         })
 
         //delete the concept
-        
+        router.delete("/:userId/concept/:id", verifyToken, async(req,res)=>{
+            try{
+                const user = req.user
+
+                const fetchedConcept = await Concept.findById(req.params.id)
+
+                if(!fetchedConcept.owner.equals(user._id)){
+                    return res.status(409).json({err:"Cannot delete concept that you didn't make"})
+                 }
+
+                if(fetchedConcept.selectedManagers.length != fetchedConcept.aprovalCount.length){
+                    return res.status(409).json({err:"Cannot delete concept that not all selected managrs have voted on!"})
+                }
+                if(fetchedConcept.isAproved){
+                    return res.status(409).json({err:"Cannot delete concept that has been aproved!"})
+                }
+
+
+            }catch(err){
+                res.status(500).json({ err: err.message })
+            }
+        })
+
 
         // Trigger notifications to selected managers
         for (let managerId of selectedManagers) {
