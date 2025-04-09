@@ -5,7 +5,7 @@ const verifyToken = require("../middleware/verify-token")
 
 const Concept = require("../models/Concept");
 const User = require("../models/User");
-const Notification = require("../models/Notification");
+const Notification = require("../models/notification");
 
 
 //get all manager
@@ -15,13 +15,33 @@ router.get("/managers", verifyToken, async (req, res) => {
             "projects",
         ])
 
-        allManagersToSend = allManagers.map((e) => {
+        const allManagersToSend = allManagers.map((e) => {
             const managerAsObj = e.toObject()
             delete managerAsObj.hashedPassword
             return managerAsObj
         })
 
         res.json(allManagersToSend)
+    }
+    catch (err) {
+        res.status(500).json({ err: err.message })
+    }
+})
+
+//get all operationals
+router.get("/operationals", verifyToken, async (req, res) => {
+    try {
+        const allOperationals = await User.find({ role: "operational" }).populate([
+            "projects",
+        ])
+
+        const allOperationalsToSend = allOperationals.map((e) => {
+            const operationalsAsObj = e.toObject()
+            delete operationalsAsObj.hashedPassword
+            return operationalsAsObj
+        })
+
+        res.json(allOperationalsToSend)
     }
     catch (err) {
         res.status(500).json({ err: err.message })
@@ -95,6 +115,42 @@ router.post("/", verifyToken, async (req, res) => {
 
         ])
 
+        //get a concept by its id
+        router.get("/:userId/concept/:id",verifyToken, async (req,res)=>{
+            try{
+                const user = req.user
+
+                const fetchedConcept = await Concept.findById(req.params.id)
+                res.status(200).json(fetchedConcept)
+
+
+            }catch(err){
+                res.status(500).json({ err: err.message })
+            }
+            
+        } )
+
+        //update the fetched concpt
+        router.put("/:userId/concept/:id", verifyToken, async (req,res)=>{
+            try{
+                const user = req.user
+                const fetchedConcept = await Concept.findById(req.params.id)
+
+                if(!fetchedConcept.owner.equals(user._id)){
+                    return res.status(409).json({err:"Cannot edit concept that you didn't make"})
+                 }
+
+                const updaredConcept = await Concept.findByIdAndUpdate(req.params.id, req.body, {new: true})
+                res.status(204).json(updaredConcept)
+
+            }catch(err){
+                res.status(500).json({ err: err.message })
+            }
+        })
+
+        //delete the concept
+        
+
         // Trigger notifications to selected managers
         for (let managerId of selectedManagers) {
             console.log(managerId)
@@ -127,13 +183,13 @@ router.post("/", verifyToken, async (req, res) => {
 
 
 //retrive unread notification
-router.get("/:userId/notifications/:id", verifyToken, async (req, res) => {
+router.get("/:userId/notifications", verifyToken, async (req, res) => {
     try {
         const user = req.user
         // Get unread notifications for the logged-in user
-        const notifications = await Notification.find({ user: user._id, isReadead: false })
-                                                .sort({ created_at: -1 })
+        const notifications = await Notification.find({ user: user._id, isRead: false })
 
+        console.log("here is the notification: ",notifications)
         res.status(200).json(notifications);
     } catch (err) {
         res.status(500).json({ err: err.message })
@@ -146,7 +202,7 @@ router.put("/:userId/notifications/:id", verifyToken, async (req, res) => {
         const user = req.user
         const notification = await Notification.findByIdAndUpdate(
             req.params.id,
-            { isReadead: true },
+            { isRead: true },
             { new: true }
         );
         res.status(200).json(notification);
