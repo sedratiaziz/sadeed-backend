@@ -15,7 +15,7 @@ router.post("/sign-up",async(req,res)=>{
         const createdUser = await User.create({
             username:req.body.username,
             hashedPassword: bcrypt.hashSync(req.body.password,12),
-            // role: req.body.role,
+            role: req.body.role,
         })
         console.log(createdUser)
 
@@ -33,7 +33,7 @@ router.post("/sign-up",async(req,res)=>{
 
 router.post("/login",async(req,res)=>{
     // destructure the req.body
-    const {username,password} = req.body
+    const {username,password, role} = req.body
     try{
         // 1. check if the user already signed up
         const foundUser = await User.findOne({username})
