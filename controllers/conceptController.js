@@ -64,6 +64,10 @@ router.get("/", verifyToken, async (req, res) => {
 
 //create a concept
 router.post("/", verifyToken, async (req, res) => {
+
+    const io = req.app.get("io"); //extra
+    const onlineUsers = req.app.get("onlineUsers"); //exrea
+
     try {
         const user = req.user
         const { selectedManagers = [], selectedOperational = [], title, description } = req.body;
@@ -76,13 +80,13 @@ router.post("/", verifyToken, async (req, res) => {
         const selectedManagersFullObj = await Promise.all(selectedManagers.map(async (e) => {
             const obj = await User.findOne({ _id: e })
             if (!obj || obj.role !== "manager") throw new Error(`User with ID ${e} not found, or not a manager`)
-                return obj
+            return obj
         }))
 
         const selectedOperationalFullObj = await Promise.all(selectedOperational.map(async (e) => {
             const obj = await User.findOne({ _id: e })
             if (!obj || obj.role !== "operational") throw new Error(`User with ID ${e} not found, or not an operational`)
-                return obj
+            return obj
         }))
 
 
@@ -117,28 +121,54 @@ router.post("/", verifyToken, async (req, res) => {
 
         ])
 
-        // Trigger notifications to selected managers
-        for (let managerId of selectedManagers) {
-            console.log(managerId)
-            const manager = await User.findById(managerId);
-            await Notification.create({
-                user: manager._id,
-                message: `You have been assigned to a new concept titled "${title}".`,
-            }).then(notification => {
-                console.log("Notification created:", notification);
-            }).catch(err => {
-                console.error("Error creating notification:", err);
-            });
-        }
 
-        // Trigger notifications to selected operational
-        for (let operationalId of selectedOperational) {
-            const operational = await User.findById(operationalId);
-            await Notification.create({
-                user: operational._id,
-                message: `You have been assigned to a new concept titled "${title}".`,
-            });
-        }
+        // Notify managers in batch
+        const managerNotifications = selectedManagers.map(id => ({
+            user: id,
+            message: `You have been assigned to a new concept titled "${title}".`
+        }));
+
+        // Notify operational staff in batch
+        const operationalNotifications = selectedOperational.map(id => ({
+            user: id,
+            message: `You have been assigned to a new concept titled "${title}".`
+        }));
+
+        const allNotifications = await Notification.insertMany([...managerNotifications, ...operationalNotifications]);
+
+        //extra
+        allNotifications.forEach((notification) => {
+            const managerId = notification.user.toString();
+            const socketId = onlineUsers.get(managerId);
+
+            if (socketId) {
+                io.to(socketId).emit("new-notification", notification);
+            }
+        });
+        //end of the extra
+
+        // // Trigger notifications to selected managers
+        // for (let managerId of selectedManagers) {
+        //     console.log(managerId)
+        //     const manager = await User.findById(managerId);
+        //     await Notification.create({
+        //         user: manager._id,
+        //         message: `You have been assigned to a new concept titled "${title}".`,
+        //     }).then(notification => {
+        //         console.log("Notification created:", notification);
+        //     }).catch(err => {
+        //         console.error("Error creating notification:", err);
+        //     });
+        // }
+
+        // // Trigger notifications to selected operational
+        // for (let operationalId of selectedOperational) {
+        //     const operational = await User.findById(operationalId);
+        //     await Notification.create({
+        //         user: operational._id,
+        //         message: `You have been assigned to a new concept titled "${title}".`,
+        //     });
+        // }
 
         res.json(createdConcept)
     }
@@ -165,6 +195,11 @@ router.get("/:userId/concept/:id", verifyToken, async (req, res) => {
 
 //update the fetched concpt
 router.put("/:userId/concept/:id", verifyToken, async (req, res) => {
+
+    const io = req.app.get("io"); //extra
+    const onlineUsers = req.app.get("onlineUsers"); //exrea
+
+
     try {
         const user = req.user
         const { selectedManagers = [], selectedOperational = [], title, description } = req.body;
@@ -179,41 +214,70 @@ router.put("/:userId/concept/:id", verifyToken, async (req, res) => {
         }
 
         const oldManagerIds = fetchedConcept.selectedManagers.map(id => id.toString())
-        const oldOperationalIds = fetchedConcept.selectedOperationals.map(id => id.toString())
+        const oldOperationalIds = fetchedConcept.selectedOperational.map(id => id.toString())
 
         const newManagerIds = selectedManagers.map(id => id.toString())
         const newOperationalIds = selectedOperational.map(id => id.toString())
 
+        const newlyAddedManagers = newManagerIds.filter(id => !oldManagerIds.includes(id))
+        const newlyAddedOperational = newOperationalIds.filter(id => !oldOperationalIds.includes(id))
 
+        const updatedConcept = await Concept.findByIdAndUpdate(req.params.id, req.body, { new: true })
 
+        const newlyAddedManagersNotifications = newlyAddedManagers.map(id => ({
+            user: id,
+            message: `You have been newly assigned as Manager to the updated concept titled "${title || fetchedConcept.title}".`
+        }))
 
+        const newlyAddedOperationalNotifications = newlyAddedOperational.map(id => ({
+            user: id,
+            message: `You have been newly assigned to the updated concept titled "${title || fetchedConcept.title}".`
+        }))
 
-        const updaredConcept = await Concept.findByIdAndUpdate(req.params.id, req.body, { new: true })
-        res.status(200).json(updaredConcept)
+        const allNotifications = [...newlyAddedManagersNotifications, ...newlyAddedOperationalNotifications];
 
-
-         // Trigger notifications to selected managers
-         for (let managerId of selectedManagers) {
-            console.log(managerId)
-            const manager = await User.findById(managerId);
-            await Notification.create({
-                user: manager._id,
-                message: `You have been assigned to a new concept titled "${title}".`,
-            }).then(notification => {
-                console.log("Notification created:", notification);
-            }).catch(err => {
-                console.error("Error creating notification:", err);
-            });
+        if (allNotifications.length > 0) {
+            await Notification.insertMany(allNotifications);
         }
 
-        // Trigger notifications to selected operational
-        for (let operationalId of selectedOperational) {
-            const operational = await User.findById(operationalId);
-            await Notification.create({
-                user: operational._id,
-                message: `You have been assigned to a new concept titled "${title}".`,
-            });
-        }
+        //extra
+        allNotifications.forEach((notification) => {
+            const managerId = notification.user.toString();
+            const socketId = onlineUsers.get(managerId);
+
+            if (socketId) {
+                io.to(socketId).emit("new-notification", notification);
+            }
+        });
+        //end of the extra
+
+        res.status(200).json(updatedConcept)
+
+
+
+
+
+        // // Step 5: Notify only newly added managers
+        // for (let managerId of newlyAddedManagers) {
+        //     const manager = await User.findById(managerId);
+        //     if (manager) {
+        //         await Notification.create({
+        //             user: manager._id,
+        //             message: `You have been newly assigned to the updated concept titled "${title || fetchedConcept.title}".`
+        //         })
+        //     }
+        // }
+
+        // // Step 5: Notify only newly added operational
+        // for (let operationalId of newlyAddedOperational) {
+        //     const operational = await User.findById(operationalId);
+        //     if (operational) {
+        //         await Notification.create({
+        //             user: operational._id,
+        //             message: `You have been newly assigned to the updated concept titled "${title || fetchedConcept.title}".`
+        //         })
+        //     }
+        // }
 
     } catch (err) {
         res.status(500).json({ err: err.message })
@@ -273,6 +337,49 @@ router.put("/:userId/notifications/:id", verifyToken, async (req, res) => {
         res.status(500).json({ err: err.message });
     }
 });
+
+// PUT /manager/managerId/concept/:id/vote
+router.put("/manager/managerId/concept/:id/vote", verifyToken, async (req, res) => {
+    try {
+        const user = req.user;
+        const { vote } = req.body; // vote: true or false
+
+        const concept = await Concept.findById(req.params.id);
+
+        if (!concept) return res.status(404).json({ err: "Concept not found" });
+
+        // Check if user is a selectedManager
+        const isManager = concept.selectedManagers.some(id => id.equals(user._id));
+        if (!isManager) return res.status(403).json({ err: "Only assigned managers can vote" });
+
+        // Remove previous vote if exists
+        concept.approvalVotes = concept.approvalVotes.filter(v => !v.manager.equals(user._id));
+
+        // Add new vote
+        concept.approvalVotes.push({ manager: user._id, vote });
+
+        // Count votes
+        const totalManagers = concept.selectedManagers.length;
+        const yesVotes = concept.approvalVotes.filter(v => v.vote).length;
+
+        const approvalRate = (yesVotes / totalManagers) * 100;
+
+        if(concept.aprovalCount.length() == concept.selectedManagers.length()){
+        if (approvalRate >= (2 / 3)) {
+            concept.isAproved = true;
+        }
+
+    }
+
+    await concept.save();
+
+
+        res.json({ concept: concept, isAproved: concept.isAproved });
+    } catch (err) {
+        res.status(500).json({ err: err.message });
+    }
+});
+
 
 
 

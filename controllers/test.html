@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Socket.IO Notification Test</title>
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  </head>
+  <body>
+    <h1>Notification Test</h1>
+    <ul id="notifications"></ul>
+
+    <script>
+      const socket = io("http://localhost:3000");
+
+      const userId = "67f4540765b786fcf2657807"; // replace with actual MongoDB _id of a manager/operational
+
+      socket.on("connect", () => {
+        console.log("Connected to server");
+        socket.emit("register", userId);
+      });
+
+      socket.on("new-notification", (notification) => {
+        const list = document.getElementById("notifications");
+        const li = document.createElement("li");
+        li.textContent = notification.message;
+        list.appendChild(li);
+        console.log("New Notification:", notification);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,12 @@
+import { io } from "socket.io-client";
+
+const socket = io("http://localhost:3000");
+
+socket.on("connect", () => {
+  console.log("Connected to socket server:", socket.id);
+  socket.emit("register", currentUserId); // use actual logged-in user ID
+});
+
+socket.on("new-notification", (notification) => {
+  console.log("New notification received:", notification);
+});
