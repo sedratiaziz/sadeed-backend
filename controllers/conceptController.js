@@ -31,7 +31,7 @@ router.get("/managers", verifyToken, async (req, res) => {
 //get all operationals
 router.get("/operationals", verifyToken, async (req, res) => {
     try {
-        const allOperationals = await User.find({ role: "operational" }).populate([
+        const allOperationals = await User.find({ role: "employee" }).populate([
             "projects",
         ])
 
