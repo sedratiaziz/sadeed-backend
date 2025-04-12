@@ -17,7 +17,7 @@ const conceptSchema = new Schema({
         ref: "User",
         required: true,
     },
-    selectedOperationals: {
+    selectedOperational: {
         type: [Schema.Types.ObjectId],
         ref: "User",
     },
@@ -26,10 +26,17 @@ const conceptSchema = new Schema({
         type: String,
 
     },
-    aprovalCount: {
-        type: [Boolean]
+    aprovalCount: [{
+        managers: {
+            type: Schema.Types.ObjectId,
+            ref: "User"
+        },
+        vote: {
+            type: Boolean,
+            required: true
+        }
 
-    },
+    }],
     isAproved: {
         type: Boolean,
         default: false,
