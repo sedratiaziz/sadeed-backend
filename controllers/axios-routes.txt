@@ -1,11 +1,14 @@
 //get all manager
 router.get("/managers")
+tested
 
 //get all operationals
 router.get("/operationals")
+tested
 
 //get all the concept attached to the user
 router.get("/")
+tested
 
 //create a concept
 router.post("/")
@@ -13,15 +16,19 @@ title: required
 selectedManagers: [id and required]
 selectedOperational:[]
 description
+tested
 
 //get a concept by its id
 router.get("/:userId/concept/:id")
+tested
 
 //update the fetched concpt
 router.put("/:userId/concept/:id")
+tested and woeked but needs the validations
 
 //delete the concept
 router.delete("/:userId/concept/:id")
+
 
 //retrive unread notification
 router.get("/:userId/notifications")

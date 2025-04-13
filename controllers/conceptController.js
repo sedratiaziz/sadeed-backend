@@ -183,7 +183,13 @@ router.get("/:userId/concept/:id", verifyToken, async (req, res) => {
     try {
         const user = req.user
 
-        const fetchedConcept = await Concept.findById(req.params.id)
+        const fetchedConcept = await Concept.findById(req.params.id).populate([
+            { path: "owner", select: "username role" },
+            { path: "selectedManagers", select: "username role" },
+            { path: "selectedOperational", select: "username role" }
+
+        ])
+
         res.status(200).json(fetchedConcept)
 
 
