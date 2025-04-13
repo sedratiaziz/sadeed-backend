@@ -73,8 +73,8 @@ router.post("/", verifyToken, async (req, res) => {
         const { selectedManagers = [], selectedOperational = [], title, description } = req.body;
         console.log(selectedManagers)
 
-        if (user.role !== "admin") {
-            return res.status(400).json({ err: "You are not an admin, you cannot create a concept!" })
+        if (user.role !== "engineer") {
+            return res.status(400).json({ err: "You are not an engineer, you cannot create a concept!" })
         }
 
         const selectedManagersFullObj = await Promise.all(selectedManagers.map(async (e) => {

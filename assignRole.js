@@ -36,7 +36,7 @@ async function assignRole() {
         type: 'list',
         name: 'role',
         message: 'Select the role to assign:',
-        choices: ['admin', 'manager', 'operational'],
+        choices: ['engineer', 'manager', 'operational'],
       },
     ]);
   
