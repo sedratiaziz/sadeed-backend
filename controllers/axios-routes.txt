@@ -1,0 +1,33 @@
+//get all manager
+router.get("/managers")
+
+//get all operationals
+router.get("/operationals")
+
+//get all the concept attached to the user
+router.get("/")
+
+//create a concept
+router.post("/")
+title: required
+selectedManagers: [id and required]
+selectedOperational:[]
+description
+
+//get a concept by its id
+router.get("/:userId/concept/:id")
+
+//update the fetched concpt
+router.put("/:userId/concept/:id")
+
+//delete the concept
+router.delete("/:userId/concept/:id")
+
+//retrive unread notification
+router.get("/:userId/notifications")
+
+//mark notification as read
+router.put("/:userId/notifications/:id")
+
+// PUT /manager/managerId/concept/:id/vote
+router.put("/manager/managerId/concept/:id/vote")

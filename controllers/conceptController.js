@@ -292,7 +292,7 @@ router.delete("/:userId/concept/:id", verifyToken, async (req, res) => {
         const fetchedConcept = await Concept.findById(req.params.id)
 
         if (!fetchedConcept.owner.equals(user._id)) {
-            return res.status(409).json({ err: "Cannot delete concept that you didn't make" })
+            return res.status(403).json({ err: "Cannot delete concept that you didn't make" })
         }
 
         if (fetchedConcept.selectedManagers.length != fetchedConcept.aprovalCount.length) {
@@ -301,6 +301,11 @@ router.delete("/:userId/concept/:id", verifyToken, async (req, res) => {
         if (fetchedConcept.isAproved) {
             return res.status(409).json({ err: "Cannot delete concept that has been aproved!" })
         }
+
+        await Concept.findByIdAndDelete(req.params.id)
+
+        res.status(200).json({ message: "Concept deleted successfully" })
+
 
 
     } catch (err) {
@@ -364,7 +369,7 @@ router.put("/manager/managerId/concept/:id/vote", verifyToken, async (req, res) 
 
         const approvalRate = (yesVotes / totalManagers) * 100;
 
-        if(concept.aprovalCount.length() == concept.selectedManagers.length()){
+        if(concept.aprovalCount.length == concept.selectedManagers.length){
         if (approvalRate >= (2 / 3)) {
             concept.isAproved = true;
         }
