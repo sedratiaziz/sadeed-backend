@@ -15,7 +15,7 @@ router.post("/sign-up",async(req,res)=>{
         const createdUser = await User.create({
             username:req.body.username,
             hashedPassword: bcrypt.hashSync(req.body.password,12),
-            role: req.body.role,
+            // role: req.body.role,
         })
         console.log(createdUser)
 
