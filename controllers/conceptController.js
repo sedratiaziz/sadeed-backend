@@ -53,7 +53,12 @@ router.get("/", verifyToken, async (req, res) => {
     try {
         const user = req.user
 
-        const conceptAttachedToUser = await Concept.find({ owner: user._id })
+        const conceptAttachedToUser = await Concept.find({ owner: user._id }).populate([
+            { path: "owner", select: "username role" },
+            { path: "selectedManagers", select: "username role" },
+            { path: "selectedOperational", select: "username role" }
+
+        ])
         res.json(conceptAttachedToUser)
 
     }
@@ -71,7 +76,6 @@ router.post("/", verifyToken, async (req, res) => {
     try {
         const user = req.user
         const { selectedManagers = [], selectedOperational = [], title, description } = req.body;
-        console.log(selectedManagers)
 
         if (user.role !== "engineer") {
             return res.status(400).json({ err: "You are not an engineer, you cannot create a concept!" })
@@ -93,8 +97,6 @@ router.post("/", verifyToken, async (req, res) => {
 
         for (const manager of selectedManagersFullObj) {
             if (manager.role !== "manager") {
-                console.log(typeof (manager))
-                console.log(manager.role)
                 return res.status(400).json({ err: "One or more of the managers do not have the role 'manager'!" })
             }
         }
@@ -125,13 +127,15 @@ router.post("/", verifyToken, async (req, res) => {
         // Notify managers in batch
         const managerNotifications = selectedManagers.map(id => ({
             user: id,
-            message: `You have been assigned to a new concept titled "${title}".`
+            message: `You have been assigned to a new concept titled "${title}".`,
+            conceptId: createdConcept._id,
         }));
 
         // Notify operational staff in batch
         const operationalNotifications = selectedOperational.map(id => ({
             user: id,
-            message: `You have been assigned to a new concept titled "${title}".`
+            message: `You have been assigned to a new concept titled "${title}".`,
+            conceptId: createdConcept._id,
         }));
 
         const allNotifications = await Notification.insertMany([...managerNotifications, ...operationalNotifications]);
@@ -146,29 +150,6 @@ router.post("/", verifyToken, async (req, res) => {
             }
         });
         //end of the extra
-
-        // // Trigger notifications to selected managers
-        // for (let managerId of selectedManagers) {
-        //     console.log(managerId)
-        //     const manager = await User.findById(managerId);
-        //     await Notification.create({
-        //         user: manager._id,
-        //         message: `You have been assigned to a new concept titled "${title}".`,
-        //     }).then(notification => {
-        //         console.log("Notification created:", notification);
-        //     }).catch(err => {
-        //         console.error("Error creating notification:", err);
-        //     });
-        // }
-
-        // // Trigger notifications to selected operational
-        // for (let operationalId of selectedOperational) {
-        //     const operational = await User.findById(operationalId);
-        //     await Notification.create({
-        //         user: operational._id,
-        //         message: `You have been assigned to a new concept titled "${title}".`,
-        //     });
-        // }
 
         res.json(createdConcept)
     }
@@ -190,6 +171,10 @@ router.get("/:userId/concept/:id", verifyToken, async (req, res) => {
 
         ])
 
+        if (fetchedConcept.owner._id.toString() !== user._id) {
+            return res.status(403).json({ message: "Forbidden: You are not the owner of this concept" });
+        }
+
         res.status(200).json(fetchedConcept)
 
 
@@ -210,34 +195,79 @@ router.put("/:userId/concept/:id", verifyToken, async (req, res) => {
         const user = req.user
         const { selectedManagers = [], selectedOperational = [], title, description } = req.body;
 
-        const fetchedConcept = await Concept.findById(req.params.id)
+        const fetchedConcept = await Concept.findById(req.params.id).populate([
+            { path: "owner", select: "username role" },
+            { path: "selectedManagers", select: "username role" },
+            { path: "selectedOperational", select: "username role" }
+
+        ])
+
         if (!fetchedConcept) {
             return res.status(404).json({ err: "Concept not found" });
         }
 
-        if (!fetchedConcept.owner.equals(user._id)) {
-            return res.status(409).json({ err: "Cannot edit concept that you didn't make" })
+        if (fetchedConcept.owner._id.toString() !== user._id) {
+            return res.status(403).json({ err: "Cannot edit concept that you didn't make" })
         }
 
-        const oldManagerIds = fetchedConcept.selectedManagers.map(id => id.toString())
-        const oldOperationalIds = fetchedConcept.selectedOperational.map(id => id.toString())
+        const selectedManagersFullObj = await Promise.all(selectedManagers.map(async (e) => {
+            const obj = await User.findOne({ _id: e })
+            return obj
+        }))
 
+        const selectedOperationalFullObj = await Promise.all(selectedOperational.map(async (e) => {
+            const obj = await User.findOne({ _id: e })
+            return obj
+        }))
+
+        for (const manager of selectedManagersFullObj) {
+            if (manager.role !== "manager") {
+                return res.status(400).json({ err: "One or more of the managers do not have the role 'manager'!" })
+            }
+        }
+
+        for (const operational of selectedOperationalFullObj) {
+            if (operational.role !== "operational") {
+                return res.status(400).json({ err: "One or more of the operational staff do not have the role 'operational'!" })
+            }
+        }
+
+        //for notification
+        //old managers and operational from fetched concept
+        const oldManagerIds = fetchedConcept.selectedManagers.map(e => e._id.toString())
+        const oldOperationalIds = fetchedConcept.selectedOperational.map(e => e._id.toString())
+
+        //all managers and operational from the req.body. i.e. old + new
         const newManagerIds = selectedManagers.map(id => id.toString())
         const newOperationalIds = selectedOperational.map(id => id.toString())
 
+        //newly added, so the be notifited alone
         const newlyAddedManagers = newManagerIds.filter(id => !oldManagerIds.includes(id))
         const newlyAddedOperational = newOperationalIds.filter(id => !oldOperationalIds.includes(id))
 
-        const updatedConcept = await Concept.findByIdAndUpdate(req.params.id, req.body, { new: true })
+        //update the concept
+        const updatedConcept = await Concept.findByIdAndUpdate(req.params.id, {
+            selectedManagers: selectedManagers,
+            selectedOperational: selectedOperational,
+            title,
+            description
+        }, { new: true }).populate([
+            { path: "owner", select: "username role" },
+            { path: "selectedManagers", select: "username role" },
+            { path: "selectedOperational", select: "username role" }
+
+        ]);
 
         const newlyAddedManagersNotifications = newlyAddedManagers.map(id => ({
             user: id,
-            message: `You have been newly assigned as Manager to the updated concept titled "${title || fetchedConcept.title}".`
+            message: `You have been newly assigned as Manager to the updated concept titled "${title || fetchedConcept.title}".`,
+            conceptId: updatedConcept._id,
         }))
 
         const newlyAddedOperationalNotifications = newlyAddedOperational.map(id => ({
             user: id,
-            message: `You have been newly assigned to the updated concept titled "${title || fetchedConcept.title}".`
+            message: `You have been newly assigned to the updated concept titled "${title || fetchedConcept.title}".`,
+            conceptId: updatedConcept._id,
         }))
 
         const allNotifications = [...newlyAddedManagersNotifications, ...newlyAddedOperationalNotifications];
@@ -259,32 +289,6 @@ router.put("/:userId/concept/:id", verifyToken, async (req, res) => {
 
         res.status(200).json(updatedConcept)
 
-
-
-
-
-        // // Step 5: Notify only newly added managers
-        // for (let managerId of newlyAddedManagers) {
-        //     const manager = await User.findById(managerId);
-        //     if (manager) {
-        //         await Notification.create({
-        //             user: manager._id,
-        //             message: `You have been newly assigned to the updated concept titled "${title || fetchedConcept.title}".`
-        //         })
-        //     }
-        // }
-
-        // // Step 5: Notify only newly added operational
-        // for (let operationalId of newlyAddedOperational) {
-        //     const operational = await User.findById(operationalId);
-        //     if (operational) {
-        //         await Notification.create({
-        //             user: operational._id,
-        //             message: `You have been newly assigned to the updated concept titled "${title || fetchedConcept.title}".`
-        //         })
-        //     }
-        // }
-
     } catch (err) {
         res.status(500).json({ err: err.message })
     }
@@ -294,11 +298,19 @@ router.put("/:userId/concept/:id", verifyToken, async (req, res) => {
 router.delete("/:userId/concept/:id", verifyToken, async (req, res) => {
     try {
         const user = req.user
+        const fetchedConcept = await Concept.findById(req.params.id).populate([
+            { path: "owner", select: "username role" },
+            { path: "selectedManagers", select: "username role" },
+            { path: "selectedOperational", select: "username role" }
 
-        const fetchedConcept = await Concept.findById(req.params.id)
+        ])
 
-        if (!fetchedConcept.owner.equals(user._id)) {
-            return res.status(403).json({ err: "Cannot delete concept that you didn't make" })
+        if (!fetchedConcept) {
+            return res.status(404).json({ err: "Concept not found" });
+        }
+
+        if (fetchedConcept.owner._id.toString() !== user._id) {
+            return res.status(403).json({ err: "Cannot edit concept that you didn't make" })
         }
 
         if (fetchedConcept.selectedManagers.length != fetchedConcept.aprovalCount.length) {
@@ -350,39 +362,60 @@ router.put("/:userId/notifications/:id", verifyToken, async (req, res) => {
 });
 
 // PUT /manager/managerId/concept/:id/vote
-router.put("/manager/managerId/concept/:id/vote", verifyToken, async (req, res) => {
+router.put("/manager/:managerId/concept/:id/vote", verifyToken, async (req, res) => {
+
+    const io = req.app.get("io"); //extra
+    const onlineUsers = req.app.get("onlineUsers"); //exrea
+
     try {
         const user = req.user;
         const { vote } = req.body; // vote: true or false
 
-        const concept = await Concept.findById(req.params.id);
+        const concept = await Concept.findById(req.params.id).populate([
+            { path: "owner", select: "username role" },
+            { path: "selectedManagers", select: "username role" },
+            { path: "selectedOperational", select: "username role" }
+
+        ]);
+        //populate to get owner id to notify him about voting result
 
         if (!concept) return res.status(404).json({ err: "Concept not found" });
 
         // Check if user is a selectedManager
-        const isManager = concept.selectedManagers.some(id => id.equals(user._id));
+        const isManager = concept.selectedManagers.some(e => e._id.equals(user._id));
         if (!isManager) return res.status(403).json({ err: "Only assigned managers can vote" });
 
         // Remove previous vote if exists
-        concept.approvalVotes = concept.approvalVotes.filter(v => !v.manager.equals(user._id));
+        concept.aprovalCount = concept.aprovalCount.filter(v => !v.manager.equals(user._id));
 
         // Add new vote
-        concept.approvalVotes.push({ manager: user._id, vote });
+        concept.aprovalCount.push({ manager: user._id, vote });
 
         // Count votes
         const totalManagers = concept.selectedManagers.length;
-        const yesVotes = concept.approvalVotes.filter(v => v.vote).length;
+        const yesVotes = concept.aprovalCount.filter(v => v.vote).length;
 
-        const approvalRate = (yesVotes / totalManagers) * 100;
+        const approvalRate = (yesVotes / totalManagers)
 
-        if(concept.aprovalCount.length == concept.selectedManagers.length){
-        if (approvalRate >= (2 / 3)) {
-            concept.isAproved = true;
+        if (concept.aprovalCount.length == concept.selectedManagers.length) {
+            if (approvalRate >= (2 / 3)) {
+                concept.isAproved = true;
+            }
+
+            //create the notification
+            const approvalMessage = concept.isAproved
+                ? `Your concept "${concept.title}" has been approved.`
+                : `Your concept "${concept.title}" has not been approved.`;
+            const engineerNotification = await Notification.create(
+                {
+                    user: concept.owner._id,
+                    message: approvalMessage
+                }
+            )
+
         }
 
-    }
-
-    await concept.save();
+        await concept.save();
 
 
         res.json({ concept: concept, isAproved: concept.isAproved });

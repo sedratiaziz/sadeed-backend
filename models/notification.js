@@ -10,6 +10,10 @@ const notificationSchema = new Schema({
         type: String,
         required: true,
     },
+    conceptId: {
+        type: Schema.Types.ObjectId,
+        ref: "Concept",
+    },
     isRead: {
         type: Boolean,
         default: false,

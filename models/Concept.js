@@ -27,7 +27,7 @@ const conceptSchema = new Schema({
 
     },
     aprovalCount: [{
-        managers: {
+        manager: {
             type: Schema.Types.ObjectId,
             ref: "User"
         },

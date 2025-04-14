@@ -24,11 +24,11 @@ tested
 
 //update the fetched concpt
 router.put("/:userId/concept/:id")
-tested and woeked but needs the validations
+tested and has needed validations
 
 //delete the concept
 router.delete("/:userId/concept/:id")
-
+tested
 
 //retrive unread notification
 router.get("/:userId/notifications")
