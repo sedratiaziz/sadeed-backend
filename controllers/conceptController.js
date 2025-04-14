@@ -413,6 +413,14 @@ router.put("/manager/:managerId/concept/:id/vote", verifyToken, async (req, res)
                 }
             )
 
+            //notify
+            engineerId = engineerNotification.user.toString()
+            const socketId = onlineUsers.get(engineerId)
+
+            if (socketId) {
+                io.to(socketId).emit("new-notification", notification);
+            }
+
         }
 
         await concept.save();
