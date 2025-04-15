@@ -3,9 +3,9 @@ const verifyToken = require("../middleware/verify-token")
 
 
 
-const Concept = require("../models/Concept");
-const User = require("../models/User");
-const Notification = require("../models/notification");
+const Concept = require("../models/Concept")
+const User = require("../models/User")
+const Notification = require("../models/notification")
 
 
 //get all manager
@@ -70,12 +70,12 @@ router.get("/", verifyToken, async (req, res) => {
 //create a concept
 router.post("/", verifyToken, async (req, res) => {
 
-    const io = req.app.get("io"); //extra
-    const onlineUsers = req.app.get("onlineUsers"); //exrea
+    const io = req.app.get("io") //extra
+    const onlineUsers = req.app.get("onlineUsers") //exrea
 
     try {
         const user = req.user
-        const { selectedManagers = [], selectedOperational = [], title, description } = req.body;
+        const { selectedManagers = [], selectedOperational = [], title, description } = req.body
 
         if (user.role !== "engineer") {
             return res.status(400).json({ err: "You are not an engineer, you cannot create a concept!" })
@@ -129,26 +129,26 @@ router.post("/", verifyToken, async (req, res) => {
             user: id,
             message: `You have been assigned to a new concept titled "${title}".`,
             conceptId: createdConcept._id,
-        }));
+        }))
 
         // Notify operational staff in batch
         const operationalNotifications = selectedOperational.map(id => ({
             user: id,
             message: `You have been assigned to a new concept titled "${title}".`,
             conceptId: createdConcept._id,
-        }));
+        }))
 
-        const allNotifications = await Notification.insertMany([...managerNotifications, ...operationalNotifications]);
+        const allNotifications = await Notification.insertMany([...managerNotifications, ...operationalNotifications])
 
         //extra
         allNotifications.forEach((notification) => {
-            const managerId = notification.user.toString();
-            const socketId = onlineUsers.get(managerId);
+            const managerId = notification.user.toString()
+            const socketId = onlineUsers.get(managerId)
 
             if (socketId) {
-                io.to(socketId).emit("new-notification", notification);
+                io.to(socketId).emit("new-notification", notification)
             }
-        });
+        })
         //end of the extra
 
         res.json(createdConcept)
@@ -172,7 +172,7 @@ router.get("/:userId/concept/:id", verifyToken, async (req, res) => {
         ])
 
         if (fetchedConcept.owner._id.toString() !== user._id) {
-            return res.status(403).json({ message: "Forbidden: You are not the owner of this concept" });
+            return res.status(403).json({ message: "Forbidden: You are not the owner of this concept" })
         }
 
         res.status(200).json(fetchedConcept)
@@ -187,13 +187,13 @@ router.get("/:userId/concept/:id", verifyToken, async (req, res) => {
 //update the fetched concpt
 router.put("/:userId/concept/:id", verifyToken, async (req, res) => {
 
-    const io = req.app.get("io"); //extra
-    const onlineUsers = req.app.get("onlineUsers"); //exrea
+    const io = req.app.get("io") //extra
+    const onlineUsers = req.app.get("onlineUsers") //exrea
 
 
     try {
         const user = req.user
-        const { selectedManagers = [], selectedOperational = [], title, description } = req.body;
+        const { selectedManagers = [], selectedOperational = [], title, description } = req.body
 
         const fetchedConcept = await Concept.findById(req.params.id).populate([
             { path: "owner", select: "username role" },
@@ -203,7 +203,7 @@ router.put("/:userId/concept/:id", verifyToken, async (req, res) => {
         ])
 
         if (!fetchedConcept) {
-            return res.status(404).json({ err: "Concept not found" });
+            return res.status(404).json({ err: "Concept not found" })
         }
 
         if (fetchedConcept.owner._id.toString() !== user._id) {
@@ -256,7 +256,7 @@ router.put("/:userId/concept/:id", verifyToken, async (req, res) => {
             { path: "selectedManagers", select: "username role" },
             { path: "selectedOperational", select: "username role" }
 
-        ]);
+        ])
 
         const newlyAddedManagersNotifications = newlyAddedManagers.map(id => ({
             user: id,
@@ -270,21 +270,21 @@ router.put("/:userId/concept/:id", verifyToken, async (req, res) => {
             conceptId: updatedConcept._id,
         }))
 
-        const allNotifications = [...newlyAddedManagersNotifications, ...newlyAddedOperationalNotifications];
+        const allNotifications = [...newlyAddedManagersNotifications, ...newlyAddedOperationalNotifications]
 
         if (allNotifications.length > 0) {
-            await Notification.insertMany(allNotifications);
+            await Notification.insertMany(allNotifications)
         }
 
         //extra
         allNotifications.forEach((notification) => {
-            const managerId = notification.user.toString();
-            const socketId = onlineUsers.get(managerId);
+            const managerId = notification.user.toString()
+            const socketId = onlineUsers.get(managerId)
 
             if (socketId) {
-                io.to(socketId).emit("new-notification", notification);
+                io.to(socketId).emit("new-notification", notification)
             }
-        });
+        })
         //end of the extra
 
         res.status(200).json(updatedConcept)
@@ -306,7 +306,7 @@ router.delete("/:userId/concept/:id", verifyToken, async (req, res) => {
         ])
 
         if (!fetchedConcept) {
-            return res.status(404).json({ err: "Concept not found" });
+            return res.status(404).json({ err: "Concept not found" })
         }
 
         if (fetchedConcept.owner._id.toString() !== user._id) {
@@ -340,7 +340,7 @@ router.get("/:userId/notifications", verifyToken, async (req, res) => {
         const notifications = await Notification.find({ user: user._id, isRead: false })
 
         console.log("here is the notification: ", notifications)
-        res.status(200).json(notifications);
+        res.status(200).json(notifications)
     } catch (err) {
         res.status(500).json({ err: err.message })
     }
@@ -354,58 +354,58 @@ router.put("/:userId/notifications/:id", verifyToken, async (req, res) => {
             req.params.id,
             { isRead: true },
             { new: true }
-        );
-        res.status(200).json(notification);
+        )
+        res.status(200).json(notification)
     } catch (err) {
-        res.status(500).json({ err: err.message });
+        res.status(500).json({ err: err.message })
     }
-});
+})
 
 // PUT /manager/managerId/concept/:id/vote
 router.put("/manager/:managerId/concept/:id/vote", verifyToken, async (req, res) => {
 
-    const io = req.app.get("io"); //extra
-    const onlineUsers = req.app.get("onlineUsers"); //exrea
+    const io = req.app.get("io") //extra
+    const onlineUsers = req.app.get("onlineUsers") //exrea
 
     try {
-        const user = req.user;
-        const { vote } = req.body; // vote: true or false
+        const user = req.user
+        const { vote } = req.body // vote: true or false
 
         const concept = await Concept.findById(req.params.id).populate([
             { path: "owner", select: "username role" },
             { path: "selectedManagers", select: "username role" },
             { path: "selectedOperational", select: "username role" }
 
-        ]);
+        ])
         //populate to get owner id to notify him about voting result
 
-        if (!concept) return res.status(404).json({ err: "Concept not found" });
+        if (!concept) return res.status(404).json({ err: "Concept not found" })
 
         // Check if user is a selectedManager
-        const isManager = concept.selectedManagers.some(e => e._id.equals(user._id));
-        if (!isManager) return res.status(403).json({ err: "Only assigned managers can vote" });
+        const isManager = concept.selectedManagers.some(e => e._id.equals(user._id))
+        if (!isManager) return res.status(403).json({ err: "Only assigned managers can vote" })
 
         // Remove previous vote if exists
-        concept.aprovalCount = concept.aprovalCount.filter(v => !v.manager.equals(user._id));
+        concept.aprovalCount = concept.aprovalCount.filter(v => !v.manager.equals(user._id))
 
         // Add new vote
-        concept.aprovalCount.push({ manager: user._id, vote });
+        concept.aprovalCount.push({ manager: user._id, vote })
 
         // Count votes
-        const totalManagers = concept.selectedManagers.length;
-        const yesVotes = concept.aprovalCount.filter(v => v.vote).length;
+        const totalManagers = concept.selectedManagers.length
+        const yesVotes = concept.aprovalCount.filter(v => v.vote).length
 
         const approvalRate = (yesVotes / totalManagers)
 
         if (concept.aprovalCount.length == concept.selectedManagers.length) {
             if (approvalRate >= (2 / 3)) {
-                concept.isAproved = true;
+                concept.isAproved = true
             }
 
             //create the notification
             const approvalMessage = concept.isAproved
                 ? `Your concept "${concept.title}" has been approved.`
-                : `Your concept "${concept.title}" has not been approved.`;
+                : `Your concept "${concept.title}" has not been approved.`
             const engineerNotification = await Notification.create(
                 {
                     user: concept.owner._id,
@@ -413,16 +413,24 @@ router.put("/manager/:managerId/concept/:id/vote", verifyToken, async (req, res)
                 }
             )
 
+            //notify
+            engineerId = engineerNotification.user.toString()
+            const socketId = onlineUsers.get(engineerId)
+
+            if (socketId) {
+                io.to(socketId).emit("new-notification", engineerNotification )
+            }
+
         }
 
-        await concept.save();
+        await concept.save()
 
 
-        res.json({ concept: concept, isAproved: concept.isAproved });
+        res.json({ concept: concept, isAproved: concept.isAproved })
     } catch (err) {
-        res.status(500).json({ err: err.message });
+        res.status(500).json({ err: err.message })
     }
-});
+})
 
 
 
