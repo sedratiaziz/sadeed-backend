@@ -31,7 +31,7 @@ router.get("/managers", verifyToken, async (req, res) => {
 //get all operationals
 router.get("/operationals", verifyToken, async (req, res) => {
     try {
-        const allOperationals = await User.find({ role: "engineer" }).populate([
+        const allOperationals = await User.find({ role: "operational" }).populate([
             "projects",
         ])
 
@@ -313,12 +313,12 @@ router.delete("/:userId/concept/:id", verifyToken, async (req, res) => {
             return res.status(403).json({ err: "Cannot edit concept that you didn't make" })
         }
 
-        if (fetchedConcept.selectedManagers.length != fetchedConcept.aprovalCount.length) {
-            return res.status(409).json({ err: "Cannot delete concept that not all selected managrs have voted on!" })
-        }
-        if (fetchedConcept.isAproved) {
-            return res.status(409).json({ err: "Cannot delete concept that has been aproved!" })
-        }
+        // if (fetchedConcept.selectedManagers.length != fetchedConcept.aprovalCount.length) {
+        //     return res.status(409).json({ err: "Cannot delete concept that not all selected managrs have voted on!" })
+        // }
+        // if (fetchedConcept.isAproved) {
+        //     return res.status(409).json({ err: "Cannot delete concept that has been aproved!" })
+        // }
 
         await Concept.findByIdAndDelete(req.params.id)
 
