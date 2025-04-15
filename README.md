@@ -82,7 +82,7 @@ npm run dev
 |-----------|-------------------------------------------|
 | Engineer  | Creates and manages concepts              |
 | Manager   | Reviews and approves assigned concepts    |
-| Employee  | Assign to the operational team            |
+| Operational Assign to the operational team            |
 
 ---
 

@@ -67,6 +67,32 @@ router.get("/", verifyToken, async (req, res) => {
     }
 })
 
+
+
+// get concepts assigned to Managers, and Operationals
+router.get("/assigned", verifyToken, async (req, res) => {
+    try {
+      const user = req.user;
+      
+      const assignedConcepts = await Concept.find({
+        $or: [
+          { selectedManagers: user._id },
+          { selectedOperational: user._id }
+        ]
+      }).populate([
+        { path: "owner", select: "username role" },
+        { path: "selectedManagers", select: "username role" },
+        { path: "selectedOperational", select: "username role" }
+      ]);
+      
+      res.json(assignedConcepts);
+    }
+    catch (err) {
+      res.status(500).json({ err: err.message });
+    }
+  });
+
+
 //create a concept
 router.post("/", verifyToken, async (req, res) => {
 
