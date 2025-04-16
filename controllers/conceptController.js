@@ -53,13 +53,22 @@ router.get("/", verifyToken, async (req, res) => {
     try {
         const user = req.user
 
+
         const conceptAttachedToUser = await Concept.find({ owner: user._id }).populate([
             { path: "owner", select: "username role" },
             { path: "selectedManagers", select: "username role" },
-            { path: "selectedOperational", select: "username role" }
+            { path: "selectedOperational", select: "username role" },
+            { path: "aprovalCount" }
 
         ])
-        res.json(conceptAttachedToUser)
+        console.log(conceptAttachedToUser)
+
+
+        let filteredConcepts = conceptAttachedToUser.approvalCount.filter((approval)=>{
+            return user._id == approval.manager
+        })
+        console.log(filteredConcepts)
+        res.json(filteredConcepts)
 
     }
     catch (err) {
@@ -82,10 +91,22 @@ router.get("/assigned", verifyToken, async (req, res) => {
       }).populate([
         { path: "owner", select: "username role" },
         { path: "selectedManagers", select: "username role" },
-        { path: "selectedOperational", select: "username role" }
+        { path: "selectedOperational", select: "username role" },
+        { path: "aprovalCount" }
+
       ]);
-      
-      res.json(assignedConcepts);
+      console.log("assignedConcepts",assignedConcepts)
+      let conceptsResponse = []
+      assignedConcepts.forEach((oneConcept)=>{
+         oneConcept.aprovalCount.forEach((approval)=>{
+            if(user._id !== approval.manager){
+                conceptsResponse.push(oneConcept)
+            }
+             
+        })
+      })
+     
+    res.json(conceptsResponse)
     }
     catch (err) {
       res.status(500).json({ err: err.message });
