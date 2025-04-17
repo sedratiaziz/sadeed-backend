@@ -64,7 +64,7 @@ router.get("/", verifyToken, async (req, res) => {
         console.log(conceptAttachedToUser)
 
 
-        let filteredConcepts = conceptAttachedToUser.approvalCount.filter((approval)=>{
+        let filteredConcepts = conceptAttachedToUser.approvalCount.filter((approval) => {
             return user._id == approval.manager
         })
         console.log(filteredConcepts)
@@ -81,37 +81,37 @@ router.get("/", verifyToken, async (req, res) => {
 // get concepts assigned to Managers, and Operationals
 router.get("/assigned", verifyToken, async (req, res) => {
     try {
-      const user = req.user;
-      
-      const assignedConcepts = await Concept.find({
-        $or: [
-          { selectedManagers: user._id },
-          { selectedOperational: user._id }
-        ]
-      }).populate([
-        { path: "owner", select: "username role" },
-        { path: "selectedManagers", select: "username role" },
-        { path: "selectedOperational", select: "username role" },
-        { path: "aprovalCount" }
+        const user = req.user;
 
-      ]);
-      console.log("assignedConcepts",assignedConcepts)
-      let conceptsResponse = []
-      assignedConcepts.forEach((oneConcept)=>{
-         oneConcept.aprovalCount.forEach((approval)=>{
-            if(user._id !== approval.manager){
-                conceptsResponse.push(oneConcept)
-            }
-             
+        const assignedConcepts = await Concept.find({
+            $or: [
+                { selectedManagers: user._id },
+                { selectedOperational: user._id }
+            ]
+        }).populate([
+            { path: "owner", select: "username role" },
+            { path: "selectedManagers", select: "username role" },
+            { path: "selectedOperational", select: "username role" },
+            { path: "aprovalCount" }
+
+        ]);
+        console.log("assignedConcepts", assignedConcepts)
+        let conceptsResponse = []
+        assignedConcepts.forEach((oneConcept) => {
+            oneConcept.aprovalCount.forEach((approval) => {
+                if (user._id !== approval.manager) {
+                    conceptsResponse.push(oneConcept)
+                }
+
+            })
         })
-      })
-     
-    res.json(conceptsResponse)
+
+        res.json(conceptsResponse)
     }
     catch (err) {
-      res.status(500).json({ err: err.message });
+        res.status(500).json({ err: err.message });
     }
-  });
+});
 
 
 //create a concept
@@ -465,10 +465,11 @@ router.put("/manager/:managerId/concept/:id/vote", verifyToken, async (req, res)
             const socketId = onlineUsers.get(engineerId)
 
             if (socketId) {
-                io.to(socketId).emit("new-notification", engineerNotification )
+                io.to(socketId).emit("new-notification", engineerNotification)
             }
 
         }
+
 
         await concept.save()
 
@@ -476,6 +477,77 @@ router.put("/manager/:managerId/concept/:id/vote", verifyToken, async (req, res)
         res.json({ concept: concept, isAproved: concept.isAproved })
     } catch (err) {
         res.status(500).json({ err: err.message })
+    }
+})
+
+
+
+//put axios.(/:userId/concept/:conceptId/status)
+router.put("/:userId/concept/:conceptId/status", verifyToken, async (req, res) => {
+    try {
+        const user = req.user
+        const fetchedConcept = await Concept.findById(req.params.conceptId).populate([
+            { path: "owner", select: "username role" },
+            { path: "selectedManagers", select: "username role" },
+            { path: "selectedOperational", select: "username role" },
+            { path: "status" },
+            { path: "isAproved" },
+            { path: "aprovalCount", select: "manager vote" }
+        ])
+
+        if (!fetchedConcept) return res.status(404).json({ err: "Concept not found" })
+
+        if (fetchedConcept.selectedManagers.length !== fetchedConcept.aprovalCount.length)
+            return res.status(403).json({ err: "Can't change pendding concept" })
+
+        if (!fetchedConcept.isAproved)
+            return res.status(403).json({ err: "Can't change unApproved concept" })
+
+        if (user.role !== "operational") {
+            return res.status(400).json({ err: "You are not an operational, you cannot change the status!" })
+        }
+        fetchedConcept.status = req.body.status
+        await fetchedConcept.save()
+
+        // // Real-time notification via Socket.IO
+        // const io = req.app.get("io"); // Assuming you're storing io in app context
+        // const onlineUsers = req.app.get("onlineUsers"); //exrea
+
+        // // Notify managers in batch
+        // const managerNotifications = fetchedConcept.selectedManagers.map(id => ({
+        //     user: id,
+        //     message: `"${fetchedConcept.title} is ${fetchedConcept.status} ".`,
+        //     conceptId: fetchedConcept._id,
+        // }))
+        // const allNotifications = await Notification.insertMany([...managerNotifications]);
+
+        // //extra
+        // allNotifications.forEach((notification) => {
+        //     const managerId = notification.user.toString();
+        //     const socketId = onlineUsers.get(managerId);
+
+        //     if (socketId) {
+        //         io.to(socketId).emit("new-notification", notification);
+        //     }
+        // });
+
+        // //create the notification
+        // const engineerMessage = `"${fetchedConcept.title} is ${fetchedConcept.status} ".`
+        // const engineerNotification = await Notification.create(
+        //     {
+        //         user: fetchedConcept.owner._id,
+        //         message: engineerMessage,
+        //         conceptId: fetchedConcept._id,
+
+        //     }
+        // )
+
+
+        res.status(200).json(fetchedConcept)
+
+
+    } catch (err) {
+        console.error("Error updating status:", err.response?.data || err.message);
     }
 })
 
