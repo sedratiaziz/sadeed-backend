@@ -53,22 +53,25 @@ router.get("/", verifyToken, async (req, res) => {
     try {
         const user = req.user
 
-
         const conceptAttachedToUser = await Concept.find({ owner: user._id }).populate([
             { path: "owner", select: "username role" },
             { path: "selectedManagers", select: "username role" },
             { path: "selectedOperational", select: "username role" },
-            { path: "aprovalCount" }
-
+            // *** fix attempt (with Omar) ***
+            // { path: "aprovalCount" }
         ])
-        console.log(conceptAttachedToUser)
+        res.json(conceptAttachedToUser)
+        
+        // *** fix attempt *** (with Omar) 
+        // for concepts re-appearing one page refresh after being voted on
+        // console.log(conceptAttachedToUser)
 
 
-        let filteredConcepts = conceptAttachedToUser.approvalCount.filter((approval) => {
-            return user._id == approval.manager
-        })
-        console.log(filteredConcepts)
-        res.json(filteredConcepts)
+        // let filteredConcepts = conceptAttachedToUser.approvalCount.filter((approval) => {
+        //     return user._id == approval.manager
+        // })
+        // console.log(filteredConcepts)
+        // res.json(filteredConcepts)
 
     }
     catch (err) {
@@ -81,37 +84,41 @@ router.get("/", verifyToken, async (req, res) => {
 // get concepts assigned to Managers, and Operationals
 router.get("/assigned", verifyToken, async (req, res) => {
     try {
-        const user = req.user;
+      const user = req.user;
+      
+      const assignedConcepts = await Concept.find({
+        $or: [
+          { selectedManagers: user._id },
+          { selectedOperational: user._id }
+        ]
+      }).populate([
+        { path: "owner", select: "username role" },
+        { path: "selectedManagers", select: "username role" },
+        { path: "selectedOperational", select: "username role" },
+        // *** fix attempt (with Omar) ***
+        // { path: "aprovalCount" }
+      ]);
+      
+    //           // *** fix attempt *** (with Omar) 
+        // for concepts re-appearing one page refresh after being voted on
 
-        const assignedConcepts = await Concept.find({
-            $or: [
-                { selectedManagers: user._id },
-                { selectedOperational: user._id }
-            ]
-        }).populate([
-            { path: "owner", select: "username role" },
-            { path: "selectedManagers", select: "username role" },
-            { path: "selectedOperational", select: "username role" },
-            { path: "aprovalCount" }
+    //   console.log("assignedConcepts", assignedConcepts)
+    //     let conceptsResponse = []
+    //     assignedConcepts.forEach((oneConcept) => {
+    //         oneConcept.aprovalCount.forEach((approval) => {
+    //             if (user._id !== approval.manager) {
+    //                 conceptsResponse.push(oneConcept)
+    //             }
 
-        ]);
-        console.log("assignedConcepts", assignedConcepts)
-        let conceptsResponse = []
-        assignedConcepts.forEach((oneConcept) => {
-            oneConcept.aprovalCount.forEach((approval) => {
-                if (user._id !== approval.manager) {
-                    conceptsResponse.push(oneConcept)
-                }
-
-            })
-        })
-
-        res.json(conceptsResponse)
+    //         })
+    //     })
+      
+      res.json(assignedConcepts);
     }
     catch (err) {
-        res.status(500).json({ err: err.message });
+      res.status(500).json({ err: err.message });
     }
-});
+  });
 
 
 //create a concept
@@ -465,11 +472,10 @@ router.put("/manager/:managerId/concept/:id/vote", verifyToken, async (req, res)
             const socketId = onlineUsers.get(engineerId)
 
             if (socketId) {
-                io.to(socketId).emit("new-notification", engineerNotification)
+                io.to(socketId).emit("new-notification", engineerNotification )
             }
 
         }
-
 
         await concept.save()
 
@@ -479,6 +485,7 @@ router.put("/manager/:managerId/concept/:id/vote", verifyToken, async (req, res)
         res.status(500).json({ err: err.message })
     }
 })
+
 
 
 
@@ -550,11 +557,6 @@ router.put("/:userId/concept/:conceptId/status", verifyToken, async (req, res) =
         console.error("Error updating status:", err.response?.data || err.message);
     }
 })
-
-
-
-
-
 
 
 
