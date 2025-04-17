@@ -494,9 +494,9 @@ router.put("/:userId/concept/:conceptId/status", verifyToken, async (req, res) =
     try {
         const user = req.user
         const fetchedConcept = await Concept.findById(req.params.conceptId).populate([
-            { path: "owner", select: "username role" },
-            { path: "selectedManagers", select: "username role" },
-            { path: "selectedOperational", select: "username role" },
+            { path: "owner", select: "username role _id" },
+            { path: "selectedManagers", select: "username role _id" },
+            { path: "selectedOperational", select: "username role _id" },
             { path: "status" },
             { path: "isAproved" },
             { path: "aprovalCount", select: "manager vote" }
@@ -516,45 +516,43 @@ router.put("/:userId/concept/:conceptId/status", verifyToken, async (req, res) =
         fetchedConcept.status = req.body.status
         await fetchedConcept.save()
 
-        // // Real-time notification via Socket.IO
-        // const io = req.app.get("io"); // Assuming you're storing io in app context
-        // const onlineUsers = req.app.get("onlineUsers"); //exrea
+        // Real-time notification via Socket.IO
+        const io = req.app.get("io"); // Assuming you're storing io in app context
+        const onlineUsers = req.app.get("onlineUsers"); //exrea
 
-        // // Notify managers in batch
-        // const managerNotifications = fetchedConcept.selectedManagers.map(id => ({
-        //     user: id,
-        //     message: `"${fetchedConcept.title} is ${fetchedConcept.status} ".`,
-        //     conceptId: fetchedConcept._id,
-        // }))
-        // const allNotifications = await Notification.insertMany([...managerNotifications]);
+        // Notify managers in batch
+        const managerNotifications = fetchedConcept.selectedManagers.map(e => ({
+            user: e._id,
+            message: `${fetchedConcept.title} is ${fetchedConcept.status}.`,
+            conceptId: fetchedConcept._id,
+        }))
 
-        // //extra
-        // allNotifications.forEach((notification) => {
-        //     const managerId = notification.user.toString();
-        //     const socketId = onlineUsers.get(managerId);
+                // Notify operational in batch
+                const operationalNotifications = fetchedConcept.selectedOperational.map(e => ({
+                    user: e._id,
+                    message: `${fetchedConcept.title} status is ${fetchedConcept.status}.`,
+                    conceptId: fetchedConcept._id,
+                }))
 
-        //     if (socketId) {
-        //         io.to(socketId).emit("new-notification", notification);
-        //     }
-        // });
+        const engineerNotification = {
+            user: fetchedConcept.owner._id,
+            message: `${fetchedConcept.title} status is ${fetchedConcept.status}.`,
+            conceptId: fetchedConcept._id,
+        }
+        const allNotifications = await Notification.insertMany([engineerNotification,...managerNotifications,...operationalNotifications]);
 
-        // //create the notification
-        // const engineerMessage = `"${fetchedConcept.title} is ${fetchedConcept.status} ".`
-        // const engineerNotification = await Notification.create(
-        //     {
-        //         user: fetchedConcept.owner._id,
-        //         message: engineerMessage,
-        //         conceptId: fetchedConcept._id,
+        allNotifications.forEach((notification) => {
+            const userId = notification.user.toString();
+            const socketId = onlineUsers.get(userId);
 
-        //     }
-        // )
-
+            if (socketId) {
+                io.to(socketId).emit("new-notification", notification);
+            }
+        });
 
         res.status(200).json(fetchedConcept)
-
-
     } catch (err) {
-        console.error("Error updating status:", err.response?.data || err.message);
+        res.status(200).json(err.message)
     }
 })
 
