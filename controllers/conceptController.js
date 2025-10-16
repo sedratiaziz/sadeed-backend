@@ -53,12 +53,20 @@ router.get("/", verifyToken, async (req, res) => {
     try {
         const user = req.user
 
-        const conceptAttachedToUser = await Concept.find({ owner: user._id }).populate([
+        // Return concepts where the user is the owner OR is included in selectedManagers OR selectedOperational
+        const conceptAttachedToUser = await Concept.find({
+            $or: [
+                { owner: user._id },
+                { selectedManagers: user._id },
+                { selectedOperational: user._id }
+            ]
+        }).populate([
             { path: "owner", select: "username role" },
             { path: "selectedManagers", select: "username role" },
             { path: "selectedOperational", select: "username role" }
 
         ])
+
         res.json(conceptAttachedToUser)
 
     }
@@ -171,8 +179,13 @@ router.get("/:userId/concept/:id", verifyToken, async (req, res) => {
 
         ])
 
-        if (fetchedConcept.owner._id.toString() !== user._id) {
-            return res.status(403).json({ message: "Forbidden: You are not the owner of this concept" });
+        // Allow owner, assigned managers, or assigned operational users to view the concept
+        const isOwner = fetchedConcept.owner._id.toString() === user._id;
+        const isAssignedManager = fetchedConcept.selectedManagers.some(m => m._id.toString() === user._id);
+        const isAssignedOperational = fetchedConcept.selectedOperational.some(o => o._id.toString() === user._id);
+
+        if (!isOwner && !isAssignedManager && !isAssignedOperational) {
+            return res.status(403).json({ message: "Forbidden: You don't have access to this concept" });
         }
 
         res.status(200).json(fetchedConcept)
@@ -291,6 +304,17 @@ router.put("/:userId/concept/:id", verifyToken, async (req, res) => {
 
     } catch (err) {
         res.status(500).json({ err: err.message })
+    }
+})
+
+//update the concept status
+router.put("/:userId/concept/:id/status", verifyToken, async(req, res)=>{
+    try {
+        const fetchedConcept = await Concept.findById(req.params._id)
+        res.status(200).json(fetchedConcept)
+        console.log(fetchedConcept)
+    } catch (error) {
+        console.log(error)
     }
 })
 
