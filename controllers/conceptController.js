@@ -310,9 +310,11 @@ router.put("/:userId/concept/:id", verifyToken, async (req, res) => {
 //update the concept status
 router.put("/:userId/concept/:id/status", verifyToken, async(req, res)=>{
     try {
-        const fetchedConcept = await Concept.findById(req.params._id)
-        res.status(200).json(fetchedConcept)
-        console.log(fetchedConcept)
+        const { newStatus } = req.body;
+        
+        const updatedConcept = await Concept.findByIdAndUpdate(req.params.id, {status: newStatus})
+        res.status(200).json(updatedConcept)
+        
     } catch (error) {
         console.log(error)
     }
